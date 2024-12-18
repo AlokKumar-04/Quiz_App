@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Start Quiz</title>
+  </head>
+  <body>
+    <h1>Welcome to the Quiz!</h1>
+    <button id="startQuizButton">Start Quiz</button>
+    <div id="questionContainer" style="display: none">
+      <p id="questionText"></p>
+      <form id="answerForm">
+        <input
+          type="hidden"
+          name="csrfmiddlewaretoken"
+          value="{{ csrf_token }}"
+        />
+        <input type="radio" name="option" value="1" id="option1" />
+        <label for="option1"></label><br />
+        <input type="radio" name="option" value="2" id="option2" />
+        <label for="option2"></label><br />
+        <input type="radio" name="option" value="3" id="option3" />
+        <label for="option3"></label><br />
+        <input type="radio" name="option" value="4" id="option4" />
+        <label for="option4"></label><br />
+        <button type="submit">Submit</button>
+      </form>
+
+      <p id="feedback"></p>
+    </div>
+    <script>
+      document
+        .getElementById("startQuizButton")
+        .addEventListener("click", function () {
+          fetch("/get-question/")
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.message) {
+                alert(data.message);
+                return;
+              }
+    
+              document.getElementById("startQuizButton").style.display = "none";
+              document.getElementById("questionContainer").style.display = "block";
+              document.getElementById("questionText").innerText = data.question;
+    
+              for (let i = 1; i <= 4; i++) {
+                document.getElementById(
+                  `option${i}`
+                ).nextElementSibling.innerText = data.options[i - 1];
+              }
+    
+              document.getElementById("answerForm").onsubmit = function (event) {
+                event.preventDefault();
+                const selectedOption = document.querySelector(
+                  'input[name="option"]:checked'
+                );
+    
+                if (!selectedOption) {
+                  alert("Please select an option.");
+                  return;
+                }
+    
+                // Get the CSRF token from the cookies
+                const getCookie = (name) => {
+                  let cookieValue = null;
+                  if (document.cookie && document.cookie !== "") {
+                    const cookies = document.cookie.split(";");
+                    for (let i = 0; i < cookies.length; i++) {
+                      const cookie = cookies[i].trim();
+                      if (cookie.startsWith(name + "=")) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                      }
+                    }
+                  }
+                  return cookieValue;
+                };
+                const csrfToken = getCookie("csrftoken");
+    
+                fetch("/submit-answer/", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "X-CSRFToken": csrfToken,
+                  },
+                  body: `question_id=${data.id}&selected_option=${selectedOption.value}`,
+                })
+                  .then((response) => response.json())
+                  .then((result) => {
+                    document.getElementById("feedback").innerText = result.correct
+                      ? "Correct!"
+                      : "Incorrect.";
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 2000);
+                  });
+              };
+            });
+        });
+    </script>    
+  </body>
+</html>
